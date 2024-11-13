@@ -1,9 +1,9 @@
 # backend/agents/admin.py
 
 from django.contrib import admin
-from .models import Agent
+from .models import Agent, Team, Template, Avatar
 
-@admin.register(Agent)
-class AgentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'description')
-    search_fields = ('name',)
+admin.site.register(Agent)
+admin.site.register(Team)
+admin.site.register(Template)
+admin.site.register(Avatar)

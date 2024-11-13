@@ -1,57 +1,41 @@
 # backend/agents/views.py
 
-from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated  # Добавьте этот импорт
-from rest_framework.response import Response
+from rest_framework import viewsets, generics, status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .models import Agent, Team, Template, Avatar
+from .serializers import (
+    AgentSerializer,
+    TeamSerializer,
+    TemplateSerializer,
+    AvatarSerializer,
+    UserSerializer,
+    RegisterSerializer
+)
 from rest_framework.views import APIView
+from rest_framework.response import Response
 from django.contrib.auth.models import User
-from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import serializers
-from .models import Agent
-from .serializers import AgentSerializer
-from .models import Team
-from .serializers import TeamSerializer
 
 class AgentViewSet(viewsets.ModelViewSet):
     queryset = Agent.objects.all()
     serializer_class = AgentSerializer
-    permission_classes = [IsAuthenticated]  # Уже настроено
+    permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        agent = serializer.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        agent = self.get_object()
-        serializer = self.get_serializer(agent, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-    
 class TeamViewSet(viewsets.ModelViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
-# Сериализатор для регистрации пользователя
-class RegisterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('username', 'password', 'email')
-        extra_kwargs = {'password': {'write_only': True}}
+    permission_classes = [IsAuthenticated]
 
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            password=validated_data['password'],
-            email=validated_data.get('email')
-        )
-        return user
+class TemplateViewSet(viewsets.ModelViewSet):
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+    permission_classes = [IsAuthenticated]
 
-# Представление для регистрации пользователя
+class AvatarViewSet(viewsets.ModelViewSet):
+    queryset = Avatar.objects.all()
+    serializer_class = AvatarSerializer
+    permission_classes = [IsAuthenticated]
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -65,3 +49,31 @@ class RegisterView(APIView):
                 'access': str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            serializer = UserSerializer(request.user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AvailableAvatarsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        try:
+            avatars = Avatar.objects.all()
+            serializer = AvatarSerializer(avatars, many=True, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
